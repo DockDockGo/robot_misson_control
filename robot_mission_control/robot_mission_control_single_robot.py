@@ -24,20 +24,10 @@ class MissionControlActionServer(Node):
         super().__init__('state_machine_action_server')
         self.get_logger().info("Starting State Machine Action Server")
 
-        self.declare_parameter('robot1_namespace_param', 'robot1')
-        robot1_namespace = self.get_parameter('robot1_namespace_param').get_parameter_value().string_value
-        self.get_logger().info(f"robo1 namespace is {robot1_namespace}")
-
-        self.declare_parameter('robot2_namespace_param', 'robot2')
-        robot2_namespace = self.get_parameter('robot2_namespace_param').get_parameter_value().string_value
-        self.get_logger().info(f"robo2 namespace is {robot2_namespace}")
-
         action_server_name = "MissionControl"
-        self.get_logger().info(f"State Machine Action Server Name is {action_server_name}")
-        robot1_state_machine_name = robot1_namespace + "/StateMachine"
-        robot2_state_machine_name = robot2_namespace + "/StateMachine"
+        self.get_logger().info(f"Mission Control Action Server Name is {action_server_name}")
+        robot1_state_machine_name = "StateMachine"
         self.get_logger().info(f"Robot1 StateMachine Server being used for client is {robot1_state_machine_name}")
-        self.get_logger().info(f"Robot2 StateMachine Server being used for client is {robot2_state_machine_name}")
 
         self.callback_group = ReentrantCallbackGroup()
         # Construct the action server
@@ -57,24 +47,18 @@ class MissionControlActionServer(Node):
 
         # Construct the action client (node and name should be same as defined in action server)
         self._robot_1_state_machine_client = ActionClient(self, StateMachine, robot1_state_machine_name)
-        self._robot_2_state_machine_client = ActionClient(self, StateMachine, robot2_state_machine_name)
 
         self.re_init_goal_states()
         self._mission_control_success = False
 
         self._robot_1_input_feedback_pose = None
         self._robot_1_input_feedback_state = None
-        self._robot_2_input_feedback_pose = None
-        self._robot_2_input_feedback_state = None
 
         self._robot_1_action_complete = Event()
-        self._robot_2_action_complete = Event()
         self._robot_1_action_complete.clear()
-        self._robot_2_action_complete.clear()
 
     #! Temporary Pose Subscribers ########################
-        robot1_map_pose_topic = robot1_namespace + "/map_pose"
-        robot2_map_pose_topic = robot2_namespace + "/map_pose"
+        robot1_map_pose_topic = "/map_pose"
         self._robot_1_latest_pose = None
         self._robot_2_latest_pose = None
 
@@ -84,23 +68,16 @@ class MissionControlActionServer(Node):
             self._robot_1_pose_callback,
             10  # Adjust the queue size as needed
         )
-        self._robot_2_pose_subscriber = self.create_subscription(
-            PoseWithCovarianceStamped,
-            robot2_map_pose_topic,  # Topic on which pose is being relayed
-            self._robot_2_pose_callback,
-            10  # Adjust the queue size as needed
-        )
+
+        pose = PoseWithCovarianceStamped()
+        self._robot_2_latest_pose = pose
 
     def _robot_1_pose_callback(self, msg):
         self._robot_1_latest_pose = msg
-
-    def _robot_2_pose_callback(self, msg):
-        self._robot_2_latest_pose = msg
     #! ######################################################
 
     def re_init_goal_states(self):
         self._robot_1_mission_success = False
-        self._robot_2_mission_success = False
         self._goal_accepted = None
         self._goal_reached = None
 
@@ -131,22 +108,6 @@ class MissionControlActionServer(Node):
                                         robot_1_goal_package,
                                         feedback_callback=self.robot_1_client_feedback_callback)
         self._send_goal_future.add_done_callback(self.robot_1_client_goal_response_callback)
-
-
-    def robot_2_send_goal(self, robot_2_goal_package):
-        self.get_logger().info('Calling Robot 2 Action Server...')
-
-        try:
-            self._robot_2_state_machine_client.wait_for_server(timeout_sec=5)
-        except:
-            self.get_logger().error('Timeout: Action server not available, waited for 5 seconds')
-            return
-
-        self._send_goal_future = self._robot_2_state_machine_client.send_goal_async(
-                                        robot_2_goal_package,
-                                        feedback_callback=self.robot_2_client_feedback_callback)
-        self._send_goal_future.add_done_callback(self.robot_2_client_goal_response_callback)
-
 
     ########### Robot1 Functions ##########################################################
 
@@ -188,48 +149,6 @@ class MissionControlActionServer(Node):
         self.get_logger().info(f'Received feedback: robot_1 state={self._robot_1_input_feedback_state}')
 
         self.publish_mission_control_feedback()
-
-    ########### Robot2 Functions ##########################################################
-
-    def robot_2_client_goal_response_callback(self, future):
-        goal_handle = future.result()
-        if not goal_handle.accepted:
-            self.get_logger().warning('Robot 2 Goal rejected :(')
-            return
-
-        self.get_logger().info('Robot 2 Goal accepted :)')
-        self._goal_accepted = True
-
-        self._get_result_future = goal_handle.get_result_async()
-        self._get_result_future.add_done_callback(self.robot_2_client_get_result_callback)
-
-    def robot_2_client_get_result_callback(self, future):
-        result = future.result().result
-        result_string = str(result.success)
-        self.get_logger().info(f'Robot 2 Result: {result_string}')
-        if(result_string == "True"):
-            self.get_logger().info(f"Robot 2 Goal Reached")
-            self._robot_2_mission_success = True
-            self._robot_2_action_complete.set()
-        else:
-            self._robot_2_mission_success = False
-            self.get_logger().error(f"Robot 2 Goal Not Reached!")
-            self._robot_2_action_complete.set()
-
-        return
-
-    def robot_2_client_feedback_callback(self, input_feedback_msg):
-        # get feedback from low level action server
-        self._robot_2_input_feedback_pose = input_feedback_msg.feedback.pose_feedback
-        self._robot_2_input_feedback_state = input_feedback_msg.feedback.state_feedback
-        input_feedback_pose_x = str(round(self._robot_2_input_feedback_pose.pose.pose.position.x, 2))
-        input_feedback_pose_y = str(round(self._robot_2_input_feedback_pose.pose.pose.position.y, 2))
-        self.get_logger().info(f'Received feedback: robot_2 pos x={input_feedback_pose_x},\
-                                 robot_2 pos y = {input_feedback_pose_y}')
-        self.get_logger().info(f'Received feedback: robot_2 state={self._robot_2_input_feedback_state}')
-
-        self.publish_mission_control_feedback()
-
 
     ############### MAIN LOOP START ################################################
     def execute_callback(self, goal_handle):
@@ -294,16 +213,13 @@ class MissionControlActionServer(Node):
         ######### Give Goals to both robots and wait ###########
         self.re_init_goal_states()
         self._robot_1_action_complete.clear()
-        self._robot_2_action_complete.clear()
 
         self.robot_1_send_goal(robot_1_goal_package)
-        self.robot_2_send_goal(robot_2_goal_package)
 
         self._robot_1_action_complete.wait()
-        self._robot_2_action_complete.wait()
         self.get_logger().info('Got result')
 
-        if self._robot_1_mission_success and self._robot_2_mission_success:
+        if self._robot_1_mission_success:
             self.get_logger().info("Returning Success")
             goal_handle.succeed()
             return self.get_final_result(True)
