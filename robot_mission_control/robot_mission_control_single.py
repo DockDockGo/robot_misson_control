@@ -18,6 +18,7 @@ import math
 import time
 from threading import Event
 
+
 class MissionControlActionServerSingle(Node):
 
     def __init__(self):
@@ -39,11 +40,13 @@ class MissionControlActionServerSingle(Node):
             callback_group=self.callback_group)
 
         # Global Planner Service Client
-        self._global_planner_client = self.create_client(GetMultiPlan, '/multi_robot_planner/get_plan')
+        self._global_planner_client = self.create_client(GetMultiPlan,
+                                                         '/multi_robot_planner/get_plan',
+                                                         callback_group=self.callback_group)
         self.get_plan_request = GetMultiPlan.Request()
 
-        # while not self._global_planner_client.wait_for_service(timeout_sec=5.0):
-        #     self.get_logger().warn("DDG Multi Robot Planner Service not available, waiting...")
+        while not self._global_planner_client.wait_for_service(timeout_sec=100.0):
+            self.get_logger().warn("DDG Multi Robot Planner Service not available, waiting...")
 
         # Construct the action client (node and name should be same as defined in action server)
         self._robot_1_state_machine_client = ActionClient(self, StateMachine, robot1_state_machine_name)
@@ -69,33 +72,49 @@ class MissionControlActionServerSingle(Node):
             10  # Adjust the queue size as needed
         )
 
+        # Hardcode robot_2_latest_pose as we're not reading robot2 in single robot case
         pose = PoseWithCovarianceStamped()
         self._robot_2_latest_pose = pose
+    #! ######################################################
+
+    def stop_planner_client_thread(self):
+        self.shutdown_event.set()
+        self.planner_client_thread.join()
+
+    def get_waypoints_from_planner(self, future):
+        if future.done(): #and get_plan_future.result().success:
+            self.get_logger().info(f"received the plan \n {future.result().plan}")
+            self.combined_waypoints = future.result().plan
+        self._robot_1_action_complete.set()
+
 
     def _robot_1_pose_callback(self, msg):
         self._robot_1_latest_pose = msg
-        self.get_logger().info(f"Listening to robot1's map_pose")
-    #! ######################################################
 
     def re_init_goal_states(self):
         self._robot_1_mission_success = False
         self._goal_accepted = None
         self._goal_reached = None
+        self.combined_waypoints = None
+
 
     def get_final_result(self, success_status):
         result = MissionControl.Result()
         result.success = success_status
         return result
 
+
     def publish_mission_control_feedback(self):
         # publish feedback to high level action servers
-        # output_feedback_msg = MissionControl.Feedback()
-        # output_feedback_msg.pose_feedback = [self._robot_1_input_feedback_pose, self._robot_2_input_feedback_pose]
-        # output_feedback_msg.state_feedback = [self._robot_1_input_feedback_state, self._robot_2_input_feedback_state]
-        # self._mission_control_goal_handle.publish_feedback(output_feedback_msg)
+        output_feedback_msg = MissionControl.Feedback()
+        output_feedback_msg.pose_feedback = [self._robot_1_input_feedback_pose, self._robot_2_latest_pose]
+        output_feedback_msg.state_feedback = [self._robot_1_input_feedback_state, "Robot 2 not used"]
+        self._mission_control_goal_handle.publish_feedback(output_feedback_msg)
         pass
 
+
     ########## Send Goals to Individual Robots ################################################
+
 
     def robot_1_send_goal(self, robot_1_goal_package):
         self.get_logger().info('Calling Robot 1 Action Server...')
@@ -113,6 +132,7 @@ class MissionControlActionServerSingle(Node):
 
     ########### Robot1 Functions ##########################################################
 
+
     def robot_1_client_goal_response_callback(self, future):
         goal_handle = future.result()
         if not goal_handle.accepted:
@@ -124,6 +144,7 @@ class MissionControlActionServerSingle(Node):
 
         self._get_result_future = goal_handle.get_result_async()
         self._get_result_future.add_done_callback(self.robot_1_client_get_result_callback)
+
 
     def robot_1_client_get_result_callback(self, future):
         result = future.result().result
@@ -140,6 +161,7 @@ class MissionControlActionServerSingle(Node):
 
         return
 
+
     def robot_1_client_feedback_callback(self, input_feedback_msg):
         # get feedback from low level action server
         self._robot_1_input_feedback_pose = input_feedback_msg.feedback.pose_feedback
@@ -152,16 +174,14 @@ class MissionControlActionServerSingle(Node):
 
         self.publish_mission_control_feedback()
 
+
     ############### MAIN LOOP START ################################################
     def execute_callback(self, goal_handle):
         """
         Each Robot Task will be split into Undocking -> Navigation -> Docking
         """
-
+        self.re_init_goal_states()
         self._mission_control_goal_handle = goal_handle
-
-        # self._global_planner_client = self.create_client(GetMultiPlan, '/multi_robot_planner/get_plan')
-        # self.get_plan_request = GetMultiPlan.Request()
 
         # INPUT FROM FLEET MANAGEMENT
         dock_ids = goal_handle.request.robot_specific_dock_ids
@@ -174,10 +194,8 @@ class MissionControlActionServerSingle(Node):
         end_goal_robot1.header.stamp = self.get_clock().now().to_msg()
         end_goal_robot2.header.stamp = self.get_clock().now().to_msg()
 
-        end_goal_robot1.pose.position.x = -4.0
-        end_goal_robot1.pose.position.y = -1.76
-        # end_goal_robot1.pose.position.x = 12.0
-        # end_goal_robot1.pose.position.y = -2.1
+        end_goal_robot1.pose.position.x = 12.0
+        end_goal_robot1.pose.position.y = -2.1
         end_goal_robot2.pose.position.x = 0.92
         end_goal_robot2.pose.position.y = -4.0
 
@@ -196,31 +214,30 @@ class MissionControlActionServerSingle(Node):
         self.get_plan_request.start = [start_goal_robot1, start_goal_robot2]
         self.get_plan_request.goal = [end_goal_robot1, end_goal_robot2]
 
-        # get_plan_future = self._global_planner_client.call_async(self.get_plan_request)
-        # rclpy.spin_until_future_complete(self, get_plan_future)
-
-        # if get_plan_future.done(): #and get_plan_future.result().success:
-        #     self.get_logger().info(f"received the plan \n {get_plan_future.result().plan}")
-        #     combined_waypoints = get_plan_future.result().plan
+        # get plan from planner
+        self._robot_1_action_complete.clear()
+        get_plan_future = self._global_planner_client.call_async(self.get_plan_request)
+        get_plan_future.add_done_callback(self.get_waypoints_from_planner)
+        self._robot_1_action_complete.wait()
+        if self.combined_waypoints is None:
+            goal_handle.succeed()
+            return self.get_final_result(False)
 
         robot_1_goal_package = StateMachine.Goal()
         robot_1_goal_package.start_dock_id = 1 #! HARDCODED FOR NOW
         robot_1_goal_package.end_dock_id = 2 #! HARDCODED FOR NOW
-        # robot_1_goal_package.goals = combined_waypoints[0].poses
-        robot_1_goal_package.goals = [end_goal_robot1]
+        robot_1_goal_package.goals = self.combined_waypoints[0].poses
 
         ######### Give Goals to both robots and wait ###########
-        self.re_init_goal_states()
         self._robot_1_action_complete.clear()
-
         self.robot_1_send_goal(robot_1_goal_package)
-
         self._robot_1_action_complete.wait()
         self.get_logger().info('Got result')
 
+        goal_handle.succeed()
+
         if self._robot_1_mission_success:
             self.get_logger().info("Returning Success")
-            goal_handle.succeed()
             return self.get_final_result(True)
         else:
             return self.get_final_result(False)
