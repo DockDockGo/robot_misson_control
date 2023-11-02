@@ -275,10 +275,14 @@ class MissionControlActionServer(Node):
 
         # DEFINE START GOAL POINTS FOR FROM GLOBAL PLANNER
 
+        # check to make sure we have current robot pose (robot 1)
+        assert self._robot_1_latest_pose is not None
         start_goal_robot1 = PoseStamped()
         start_goal_robot1.header = self._robot_1_latest_pose.header
         start_goal_robot1.pose = self._robot_1_latest_pose.pose.pose
 
+        # check to make sure we have current robot pose (robot 2)
+        assert self._robot_2_latest_pose is not None
         start_goal_robot2 = PoseStamped()
         start_goal_robot2.header = self._robot_2_latest_pose.header
         start_goal_robot2.pose = self._robot_2_latest_pose.pose.pose
