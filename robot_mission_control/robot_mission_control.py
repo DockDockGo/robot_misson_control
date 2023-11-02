@@ -62,12 +62,6 @@ class MissionControlActionServer(Node):
         self._robot_2_state_machine_client = ActionClient(self, StateMachine, robot2_state_machine_name)
 
         self.re_init_goal_states()
-        self._mission_control_success = False
-
-        self._robot_1_input_feedback_pose = None
-        self._robot_1_input_feedback_state = None
-        self._robot_2_input_feedback_pose = None
-        self._robot_2_input_feedback_state = None
 
         self._robot_1_action_complete = Event()
         self._robot_2_action_complete = Event()
@@ -108,6 +102,11 @@ class MissionControlActionServer(Node):
         self._goal_accepted = None
         self._goal_reached = None
         self.combined_waypoints = None
+        self._robot_1_input_feedback_pose = None
+        self._robot_1_input_feedback_state = None
+        self._robot_2_input_feedback_pose = None
+        self._robot_2_input_feedback_state = None
+
 
     def get_final_result(self, success_status):
         result = MissionControl.Result()
@@ -121,11 +120,15 @@ class MissionControlActionServer(Node):
         self._get_waypoints_complete.set()
 
     def publish_mission_control_feedback(self):
-        # publish feedback to high level action servers
-        output_feedback_msg = MissionControl.Feedback()
-        output_feedback_msg.pose_feedback = [self._robot_1_input_feedback_pose, self._robot_2_input_feedback_pose]
-        output_feedback_msg.state_feedback = [self._robot_1_input_feedback_state, self._robot_2_input_feedback_state]
-        self._mission_control_goal_handle.publish_feedback(output_feedback_msg)
+        # check if both robot1 and robot1 feedback has arrived:
+        if self._robot_1_input_feedback_pose and self._robot_1_input_feedback_state \
+            and self._robot_2_input_feedback_pose and self._robot_2_input_feedback_state:
+            # publish feedback to high level action servers
+            output_feedback_msg = MissionControl.Feedback()
+            output_feedback_msg.pose_feedback = [self._robot_1_input_feedback_pose, self._robot_2_input_feedback_pose]
+            output_feedback_msg.state_feedback = [self._robot_1_input_feedback_state, self._robot_2_input_feedback_state]
+            self._mission_control_goal_handle.publish_feedback(output_feedback_msg)
+            pass
 
     ########## Send Goals to Individual Robots ################################################
 
