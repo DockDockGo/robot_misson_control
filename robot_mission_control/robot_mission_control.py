@@ -49,7 +49,9 @@ class MissionControlActionServer(Node):
             callback_group=self.callback_group)
 
         # Global Planner Service Client
-        self._global_planner_client = self.create_client(GetMultiPlan, '/multi_robot_planner/get_plan')
+        self._global_planner_client = self.create_client(GetMultiPlan,
+                                                         '/multi_robot_planner/get_plan',
+                                                         callback_group=self.callback_group)
         self.get_plan_request = GetMultiPlan.Request()
 
         while not self._global_planner_client.wait_for_service(timeout_sec=5.0):
@@ -69,8 +71,10 @@ class MissionControlActionServer(Node):
 
         self._robot_1_action_complete = Event()
         self._robot_2_action_complete = Event()
+        self._get_waypoints_complete = Event()
         self._robot_1_action_complete.clear()
         self._robot_2_action_complete.clear()
+        self._get_waypoints_complete.clear()
 
     #! Temporary Pose Subscribers ########################
         robot1_map_pose_topic = robot1_namespace + "/map_pose"
@@ -103,11 +107,18 @@ class MissionControlActionServer(Node):
         self._robot_2_mission_success = False
         self._goal_accepted = None
         self._goal_reached = None
+        self.combined_waypoints = None
 
     def get_final_result(self, success_status):
         result = MissionControl.Result()
         result.success = success_status
         return result
+
+    def get_waypoints_from_planner(self, future):
+        if future.done():
+            self.get_logger().info(f"received the plan \n {future.result().plan}")
+            self.combined_waypoints = future.result().plan
+        self._get_waypoints_complete.set()
 
     def publish_mission_control_feedback(self):
         # publish feedback to high level action servers
@@ -236,11 +247,8 @@ class MissionControlActionServer(Node):
         """
         Each Robot Task will be split into Undocking -> Navigation -> Docking
         """
-
+        self.re_init_goal_states()
         self._mission_control_goal_handle = goal_handle
-
-        # self._global_planner_client = self.create_client(GetMultiPlan, '/multi_robot_planner/get_plan')
-        # self.get_plan_request = GetMultiPlan.Request()
 
         # INPUT FROM FLEET MANAGEMENT
         dock_ids = goal_handle.request.robot_specific_dock_ids
@@ -271,24 +279,24 @@ class MissionControlActionServer(Node):
         self.get_plan_request.start = [start_goal_robot1, start_goal_robot2]
         self.get_plan_request.goal = [end_goal_robot1, end_goal_robot2]
 
+        # get plan from planner
+        self._get_waypoints_complete.clear()
         get_plan_future = self._global_planner_client.call_async(self.get_plan_request)
-        rclpy.spin_until_future_complete(self, get_plan_future)
-
-        if get_plan_future.done(): #and get_plan_future.result().success:
-            self.get_logger().info(f"received the plan \n {get_plan_future.result().plan}")
-            combined_waypoints = Path()
-            combined_waypoints = get_plan_future.result().plan
-
+        get_plan_future.add_done_callback(self.get_waypoints_from_planner)
+        self._get_waypoints_complete.wait()
+        if self.combined_waypoints is None:
+            goal_handle.succeed()
+            return self.get_final_result(False)
 
         robot_1_goal_package = StateMachine.Goal()
         robot_1_goal_package.start_dock_id = 1 #! HARDCODED FOR NOW
         robot_1_goal_package.end_dock_id = 2 #! HARDCODED FOR NOW
-        robot_1_goal_package.goals = combined_waypoints[0].poses
+        robot_1_goal_package.goals = self.combined_waypoints[0].poses
 
         robot_2_goal_package = StateMachine.Goal()
         robot_2_goal_package.start_dock_id = 1 #! HARDCODED FOR NOW
         robot_2_goal_package.end_dock_id = 2 #! HARDCODED FOR NOW
-        robot_2_goal_package.goals = combined_waypoints[1].poses
+        robot_2_goal_package.goals = self.combined_waypoints[1].poses
 
 
         ######### Give Goals to both robots and wait ###########
@@ -303,9 +311,10 @@ class MissionControlActionServer(Node):
         self._robot_2_action_complete.wait()
         self.get_logger().info('Got result')
 
+        goal_handle.succeed()
+
         if self._robot_1_mission_success and self._robot_2_mission_success:
             self.get_logger().info("Returning Success")
-            goal_handle.succeed()
             return self.get_final_result(True)
         else:
             return self.get_final_result(False)
