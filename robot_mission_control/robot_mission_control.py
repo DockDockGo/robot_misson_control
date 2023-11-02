@@ -262,12 +262,16 @@ class MissionControlActionServer(Node):
         end_goal_robot2 = PoseStamped()
 
         end_goal_robot1.header.stamp = self.get_clock().now().to_msg()
-        end_goal_robot2.header.stamp = self.get_clock().now().to_msg()
+        end_goal_robot1.pose.position.x = 1.854648
+        end_goal_robot1.pose.position.y = -1.4513322
+        end_goal_robot1.pose.orientation.z = 0.016249007268174524
+        end_goal_robot1.pose.orientation.w = 0.9998679761662531
 
-        end_goal_robot1.pose.position.x = 15.0
-        end_goal_robot1.pose.position.y = -2.0
-        end_goal_robot2.pose.position.x = 15.0
-        end_goal_robot2.pose.position.y = 2.0
+        end_goal_robot2.header.stamp = self.get_clock().now().to_msg()
+        end_goal_robot2.pose.position.x = -2.1310638
+        end_goal_robot2.pose.position.y = -2.6236246
+        end_goal_robot2.pose.orientation.z = 0.0009328767499914055
+        end_goal_robot2.pose.orientation.w = 0.99999956487039
 
         # DEFINE START GOAL POINTS FOR FROM GLOBAL PLANNER
 
