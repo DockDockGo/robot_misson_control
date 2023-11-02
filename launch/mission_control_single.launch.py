@@ -13,8 +13,8 @@ def generate_launch_description():
     # Launch the State Machine node with arguments
     MissonControl = launch_ros.actions.Node(
         package='robot_mission_control',
-        executable='robot_mission_control_node', # NOTE: Executable name defined in setup.py
-        name='robot_mission_control_node',
+        executable='robot_mission_control_node_single', # NOTE: Executable name defined in setup.py
+        name='robot_mission_control_node_single',
         output='screen',
         # parameters=[{'robot1_namespace_param': robot1_namespace}]
     )

@@ -22,7 +22,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'robot_mission_control_node = robot_mission_control.robot_mission_control:MissionControlServer'
+            'robot_mission_control_node = robot_mission_control.robot_mission_control:MissionControlServer',
+            'robot_mission_control_node_single = robot_mission_control.robot_mission_control_single:MissionControlServerSingle'
         ],
     },
 )
