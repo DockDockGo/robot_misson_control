@@ -23,6 +23,8 @@ import math
 import time
 import yaml
 from threading import Event
+import os
+from ament_index_python.packages import get_package_share_directory
 
 
 class MissionControlActionServer(Node):
@@ -38,8 +40,17 @@ class MissionControlActionServer(Node):
         )
         self.get_logger().info(f"robo2 namespace is {robot2_namespace}")
 
-        self.declare_parameter('mission_params')
-        param_file_name = self.get_parameter('mission_params').get_parameter_value().string_value
+        self.declare_parameter(
+            "mission_params",
+            os.path.join(
+                get_package_share_directory("robot_mission_control"),
+                "config",
+                "params.yaml",
+            ),
+        )
+        param_file_name = (
+            self.get_parameter("mission_params").get_parameter_value().string_value
+        )
 
         self.mission_params = yaml.safe_load(open(param_file_name))
 
@@ -233,12 +244,24 @@ class MissionControlActionServer(Node):
         # DEFINE END GOAL POINTS FOR FROM GLOBAL PLANNER
         end_goal_robot2 = PoseStamped()
         end_goal_robot2.header.stamp = self.get_clock().now().to_msg()
-        end_goal_robot2.pose.position.x = self.mission_params[robot_2_goal_dock_id]['position']['x']
-        end_goal_robot2.pose.position.y = self.mission_params[robot_2_goal_dock_id]['position']['x']
-        end_goal_robot2.pose.orientation.x = self.mission_params[robot_2_goal_dock_id]['orientation']['x']
-        end_goal_robot2.pose.orientation.y = self.mission_params[robot_2_goal_dock_id]['orientation']['y']
-        end_goal_robot2.pose.orientation.z = self.mission_params[robot_2_goal_dock_id]['orientation']['z']
-        end_goal_robot2.pose.orientation.w = self.mission_params[robot_2_goal_dock_id]['orientation']['w']
+        end_goal_robot2.pose.position.x = self.mission_params[robot_2_goal_dock_id][
+            "position"
+        ]["x"]
+        end_goal_robot2.pose.position.y = self.mission_params[robot_2_goal_dock_id][
+            "position"
+        ]["y"]
+        end_goal_robot2.pose.orientation.x = self.mission_params[robot_2_goal_dock_id][
+            "orientation"
+        ]["x"]
+        end_goal_robot2.pose.orientation.y = self.mission_params[robot_2_goal_dock_id][
+            "orientation"
+        ]["y"]
+        end_goal_robot2.pose.orientation.z = self.mission_params[robot_2_goal_dock_id][
+            "orientation"
+        ]["z"]
+        end_goal_robot2.pose.orientation.w = self.mission_params[robot_2_goal_dock_id][
+            "orientation"
+        ]["w"]
 
         self.get_logger().info(f"Goal Pose x={end_goal_robot2.pose.position.x}")
         self.get_logger().info(f"Goal Pose y={end_goal_robot2.pose.position.y}")
