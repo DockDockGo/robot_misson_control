@@ -16,7 +16,7 @@ def generate_launch_description():
         executable='robot_mission_control_node_single', # NOTE: Executable name defined in setup.py
         name='robot_mission_control_node_single',
         output='screen',
-        # parameters=[{'robot1_namespace_param': robot1_namespace}]
+        parameters=[{'robot2_namespace_param': "robot2"}]
     )
 
     ld.add_action(MissonControl)
