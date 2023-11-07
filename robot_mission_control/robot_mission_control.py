@@ -16,6 +16,9 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 import math
 import time
+import yaml
+import os
+from ament_index_python.packages import get_package_share_directory
 from threading import Event
 
 class MissionControlActionServer(Node):
@@ -38,6 +41,20 @@ class MissionControlActionServer(Node):
         robot2_state_machine_name = robot2_namespace + "/StateMachine"
         self.get_logger().info(f"Robot1 StateMachine Server being used for client is {robot1_state_machine_name}")
         self.get_logger().info(f"Robot2 StateMachine Server being used for client is {robot2_state_machine_name}")
+
+        self.declare_parameter(
+            "mission_params",
+            os.path.join(
+                get_package_share_directory("robot_mission_control"),
+                "config",
+                "params.yaml",
+            ),
+        )
+        param_file_name = (
+            self.get_parameter("mission_params").get_parameter_value().string_value
+        )
+
+        self.mission_params = yaml.safe_load(open(param_file_name))
 
         self.callback_group = ReentrantCallbackGroup()
         # Construct the action server
@@ -257,21 +274,32 @@ class MissionControlActionServer(Node):
         dock_ids = goal_handle.request.robot_specific_dock_ids
         self.get_logger().info(f'Input dock IDs are {dock_ids}')
 
+        robot_1_start_dock_id = dock_ids[0]
+        robot_1_goal_dock_id = dock_ids[1]
+        robot_2_start_dock_id = dock_ids[2]
+        robot_2_goal_dock_id = dock_ids[3]
+        self.get_logger().info(f"navigating robot_1 to dock ID {robot_1_goal_dock_id}")
+        self.get_logger().info(f"navigating robot_2 to dock ID {robot_2_goal_dock_id}")
+
         # DEFINE END GOAL POINTS FOR FROM GLOBAL PLANNER
         end_goal_robot1 = PoseStamped()
         end_goal_robot2 = PoseStamped()
 
         end_goal_robot1.header.stamp = self.get_clock().now().to_msg()
-        end_goal_robot1.pose.position.x = 1.854648
-        end_goal_robot1.pose.position.y = -1.4513322
-        end_goal_robot1.pose.orientation.z = 0.016249007268174524
-        end_goal_robot1.pose.orientation.w = 0.9998679761662531
+        end_goal_robot1.pose.position.x = self.mission_params[robot_1_goal_dock_id]["position"]["x"]
+        end_goal_robot1.pose.position.y = self.mission_params[robot_1_goal_dock_id]["position"]["y"]
+        end_goal_robot1.pose.orientation.x = self.mission_params[robot_1_goal_dock_id]["orientation"]["x"]
+        end_goal_robot1.pose.orientation.y = self.mission_params[robot_1_goal_dock_id]["orientation"]["y"]
+        end_goal_robot1.pose.orientation.z = self.mission_params[robot_1_goal_dock_id]["orientation"]["z"]
+        end_goal_robot1.pose.orientation.w = self.mission_params[robot_1_goal_dock_id]["orientation"]["w"]
 
         end_goal_robot2.header.stamp = self.get_clock().now().to_msg()
-        end_goal_robot2.pose.position.x = -2.1310638
-        end_goal_robot2.pose.position.y = -2.6236246
-        end_goal_robot2.pose.orientation.z = 0.0009328767499914055
-        end_goal_robot2.pose.orientation.w = 0.99999956487039
+        end_goal_robot2.pose.position.x = self.mission_params[robot_2_goal_dock_id]["position"]["x"]
+        end_goal_robot2.pose.position.y = self.mission_params[robot_2_goal_dock_id]["position"]["y"]
+        end_goal_robot2.pose.orientation.x = self.mission_params[robot_2_goal_dock_id]["orientation"]["x"]
+        end_goal_robot2.pose.orientation.y = self.mission_params[robot_2_goal_dock_id]["orientation"]["y"]
+        end_goal_robot2.pose.orientation.z = self.mission_params[robot_2_goal_dock_id]["orientation"]["z"]
+        end_goal_robot2.pose.orientation.w = self.mission_params[robot_2_goal_dock_id]["orientation"]["w"]
 
         # DEFINE START GOAL POINTS FOR FROM GLOBAL PLANNER
 
@@ -300,13 +328,13 @@ class MissionControlActionServer(Node):
             return self.get_final_result(False)
 
         robot_1_goal_package = StateMachine.Goal()
-        robot_1_goal_package.start_dock_id = 1 #! HARDCODED FOR NOW
-        robot_1_goal_package.end_dock_id = 2 #! HARDCODED FOR NOW
+        robot_1_goal_package.start_dock_id = robot_1_start_dock_id
+        robot_1_goal_package.end_dock_id = robot_1_goal_dock_id
         robot_1_goal_package.goals = self.combined_waypoints[0].poses
 
         robot_2_goal_package = StateMachine.Goal()
-        robot_2_goal_package.start_dock_id = 1 #! HARDCODED FOR NOW
-        robot_2_goal_package.end_dock_id = 2 #! HARDCODED FOR NOW
+        robot_2_goal_package.start_dock_id = robot_2_start_dock_id
+        robot_2_goal_package.end_dock_id = robot_2_goal_dock_id
         robot_2_goal_package.goals = self.combined_waypoints[1].poses
 
 
