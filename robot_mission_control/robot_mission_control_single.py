@@ -28,6 +28,9 @@ class MissionControlActionServer(Node):
         robot2_namespace = self.get_parameter('robot2_namespace_param').get_parameter_value().string_value
         self.get_logger().info(f"robo2 namespace is {robot2_namespace}")
 
+        self.declare_parameter('mission_params')
+        self.mission_params = self.get_parameter('mission_params').get_parameter_value()
+
         action_server_name = "MissionControl"
         self.get_logger().info(f"Mission Control Machine Action Server Name is {action_server_name}")
         robot2_state_machine_name = robot2_namespace + "/StateMachine"
@@ -180,15 +183,25 @@ class MissionControlActionServer(Node):
         dock_ids = goal_handle.request.robot_specific_dock_ids
         self.get_logger().info(f'Input dock IDs are {dock_ids}')
 
-        # DEFINE END GOAL POINTS FOR FROM GLOBAL PLANNER
-        end_goal_robot1 = PoseStamped()
-        end_goal_robot2 = PoseStamped()
+        robot_2_dock_id = dock_ids[0]
+        self.get_logger().info(f"navigating robot_2 to dock ID {robot_2_dock_id}")
 
+        # DEFINE END GOAL POINTS FOR FROM GLOBAL PLANNER
+        end_goal_robot2 = PoseStamped()
         end_goal_robot2.header.stamp = self.get_clock().now().to_msg()
-        end_goal_robot2.pose.position.x = 1.854648
-        end_goal_robot2.pose.position.y = -1.4513322
-        end_goal_robot2.pose.orientation.z = 0.016249007268174524
-        end_goal_robot2.pose.orientation.w = 0.9998679761662531
+        end_goal_robot2.pose.position.x = self.mission_params[robot_2_dock_id]['position']['x']
+        end_goal_robot2.pose.position.y = self.mission_params[robot_2_dock_id]['position']['x']
+        end_goal_robot2.pose.orientation.z = self.mission_params[robot_2_dock_id]['orientation']['z']
+        end_goal_robot2.pose.orientation.w = self.mission_params[robot_2_dock_id]['orientation']['w']
+
+        self.get_logger().info(f"Goal Pose x={end_goal_robot2.pose.position.x}")
+        self.get_logger().info(f"Goal Pose y={end_goal_robot2.pose.position.y}")
+
+        # end_goal_robot2.header.stamp = self.get_clock().now().to_msg()
+        # end_goal_robot2.pose.position.x = 1.854648
+        # end_goal_robot2.pose.position.y = -1.4513322
+        # end_goal_robot2.pose.orientation.z = 0.016249007268174524
+        # end_goal_robot2.pose.orientation.w = 0.9998679761662531
 
         # end_goal_robot2.header.stamp = self.get_clock().now().to_msg()
         # end_goal_robot2.pose.position.x = -2.1310638

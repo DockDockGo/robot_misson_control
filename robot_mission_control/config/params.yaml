@@ -1,0 +1,23 @@
+neo_localization2_node:
+  ros__parameters:
+    Docks:
+      - ID: 1
+        position:
+          x: 1.854648
+          y: -1.4513322
+        orientation:
+          x: 0.0
+          y: 0.0
+          z: 0.016249007268174524
+          w: 0.9998679761662531
+
+      - ID: 2
+        position:
+          x: -2.1310638
+          y: -2.6236246
+        orientation:
+          x: 0.0
+          y: 0.0
+          z: 0.0009328767499914055
+          w: 0.99999956487039
+
