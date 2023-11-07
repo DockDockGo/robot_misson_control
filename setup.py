@@ -14,7 +14,6 @@ setup(
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name, ['launch/mission_control.launch.py']),
         ('share/' + package_name, ['launch/mission_control_single.launch.py']),
-        (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
         (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
     ],
     install_requires=['setuptools'],
