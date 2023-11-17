@@ -25,6 +25,7 @@ import yaml
 from threading import Event
 import os
 from ament_index_python.packages import get_package_share_directory
+from tf_transformations import euler_from_quaternion
 
 
 class MissionControlActionServer(Node):
@@ -99,6 +100,7 @@ class MissionControlActionServer(Node):
         self._robot_1_action_complete.clear()
         self._robot_2_action_complete.clear()
         self._get_waypoints_complete.clear()
+        self.goal_pose = None
 
         #! Temporary Pose Subscribers ########################
         robot2_map_pose_topic = robot2_namespace + "/map_pose"
@@ -113,6 +115,43 @@ class MissionControlActionServer(Node):
 
     def _robot_2_pose_callback(self, msg):
         self._robot_2_latest_pose = msg
+
+    def wrap_around_pi(self, x):
+        x = abs(x)
+        pi = 3.1415926
+        if x < pi:
+            return x
+        return abs((x + 2 * pi) % pi - pi)
+
+    def radians_to_degrees(self, angle):
+        return angle * 180.0 / 3.1415926
+
+    def euclidean_distance(self, pose1, pose2):
+        # Extract the positions from the poses
+        if isinstance(pose1, PoseStamped) and isinstance(pose2, PoseWithCovarianceStamped):
+            pos1 = pose1.pose
+            pos2 = pose2.pose.pose
+        elif pose1 is None: # in Navigation State
+            return None
+        else:
+            raise ValueError("Input pose1 is not a valid type (Pose or PoseWithCovariance)")
+
+        # Calculate the Euclidean distance
+        dx = pos1.position.x - pos2.position.x
+        dy = pos1.position.y - pos2.position.y
+        dz = pos1.position.z - pos2.position.z
+
+        # Convert orientations to Euler angles (roll, pitch, and yaw)
+        euler_angles1 = euler_from_quaternion([pos1.orientation.x, pos1.orientation.y, pos1.orientation.z, pos1.orientation.w])
+        euler_angles2 = euler_from_quaternion([pos2.orientation.x, pos2.orientation.y, pos2.orientation.z, pos2.orientation.w])
+
+        # Calculate the orientation difference
+        orientation_difference = self.radians_to_degrees(self.wrap_around_pi(
+            euler_angles2[2] - euler_angles1[2]
+        ))
+
+        distance = math.sqrt(dx**2 + dy**2 + dz**2)
+        return dx, dy, dz, orientation_difference
 
     #! ######################################################
 
@@ -216,9 +255,12 @@ class MissionControlActionServer(Node):
             round(self._robot_2_input_feedback_pose.pose.pose.position.y, 2)
         )
         self.get_logger().info(
-            f"Received feedback: robot_2 pos x={input_feedback_pose_x},\
-                                 robot_2 pos y = {input_feedback_pose_y}"
+            # f"Received feedback: robot_2 pos x={input_feedback_pose_x},\
+            #                      robot_2 pos y = {input_feedback_pose_y}"
         )
+        dx, dy, dz, orientation_difference = self.euclidean_distance(self.goal_pose, self._robot_2_input_feedback_pose)
+        self.get_logger().info("orientation error is ", orientation_difference)
+        self.get_logger().info(f"dx={dx} and dy={dy} and dz={dz}")
         self.get_logger().info(
             f"Received feedback: robot_2 state={self._robot_2_input_feedback_state}"
         )
@@ -265,6 +307,8 @@ class MissionControlActionServer(Node):
 
         self.get_logger().info(f"Goal Pose x={end_goal_robot2.pose.position.x}")
         self.get_logger().info(f"Goal Pose y={end_goal_robot2.pose.position.y}")
+
+        self.goal_pose = end_goal_robot2
 
         # DEFINE START GOAL POINTS FOR FROM GLOBAL PLANNER
 
