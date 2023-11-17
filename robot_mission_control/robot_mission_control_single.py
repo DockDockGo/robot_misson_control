@@ -254,12 +254,12 @@ class MissionControlActionServer(Node):
         input_feedback_pose_y = str(
             round(self._robot_2_input_feedback_pose.pose.pose.position.y, 2)
         )
-        self.get_logger().info(
+        # self.get_logger().info(
             # f"Received feedback: robot_2 pos x={input_feedback_pose_x},\
             #                      robot_2 pos y = {input_feedback_pose_y}"
-        )
+        # )
         dx, dy, dz, orientation_difference = self.euclidean_distance(self.goal_pose, self._robot_2_input_feedback_pose)
-        self.get_logger().info("orientation error is ", orientation_difference)
+        self.get_logger().info(f"orientation error is {orientation_difference}")
         self.get_logger().info(f"dx={dx} and dy={dy} and dz={dz}")
         self.get_logger().info(
             f"Received feedback: robot_2 state={self._robot_2_input_feedback_state}"
