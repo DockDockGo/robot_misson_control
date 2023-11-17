@@ -15,6 +15,7 @@ def generate_launch_description():
 
     robot1_namespace = LaunchConfiguration("robot1_namespace", default="robot1")
     robot2_namespace = LaunchConfiguration("robot2_namespace", default="robot2")
+    robot_namespace = LaunchConfiguration("robot_namespace", default="robot1")
 
     params = os.path.join(
         get_package_share_directory("robot_mission_control"), "config", "params.yaml"
@@ -42,7 +43,7 @@ def generate_launch_description():
                 name="robot_mission_control_node_single",
                 output="screen",
                 parameters=[
-                    {"robot_namespace_param": robot1_namespace},
+                    {"robot_namespace_param": robot_namespace},
                     {"mission_params": params},
                 ],
             ),
