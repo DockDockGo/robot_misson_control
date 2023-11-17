@@ -42,8 +42,7 @@ def generate_launch_description():
                 name="robot_mission_control_node_single",
                 output="screen",
                 parameters=[
-                    # {"robot1_namespace_param": robot1_namespace},
-                    {"robot2_namespace_param": robot2_namespace},
+                    {"robot_namespace_param": robot1_namespace},
                     {"mission_params": params},
                 ],
             ),

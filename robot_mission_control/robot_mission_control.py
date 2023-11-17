@@ -33,7 +33,7 @@ class MissionControlActionServer(Node):
 
         self.declare_parameter('robot2_namespace_param', 'robot2')
         robot2_namespace = self.get_parameter('robot2_namespace_param').get_parameter_value().string_value
-        self.get_logger().info(f"robo2 namespace is {robot2_namespace}")
+        self.get_logger().info(f"robot2 namespace is {robot2_namespace}")
 
         action_server_name = "MissionControl"
         self.get_logger().info(f"State Machine Action Server Name is {action_server_name}")
