@@ -292,6 +292,8 @@ class MissionControlActionServer(Node):
         end_goal_robot1.pose.orientation.y = self.mission_params[robot_1_goal_dock_id]["orientation"]["y"]
         end_goal_robot1.pose.orientation.z = self.mission_params[robot_1_goal_dock_id]["orientation"]["z"]
         end_goal_robot1.pose.orientation.w = self.mission_params[robot_1_goal_dock_id]["orientation"]["w"]
+        robot1_dock_lateral_bias = self.mission_params[robot_1_goal_dock_id]["dock_bias"]["lateral"]
+        robot1_dock_forward_bias = self.mission_params[robot_1_goal_dock_id]["dock_bias"]["forward"]
 
         end_goal_robot2.header.stamp = self.get_clock().now().to_msg()
         end_goal_robot2.pose.position.x = self.mission_params[robot_2_goal_dock_id]["position"]["x"]
@@ -300,6 +302,8 @@ class MissionControlActionServer(Node):
         end_goal_robot2.pose.orientation.y = self.mission_params[robot_2_goal_dock_id]["orientation"]["y"]
         end_goal_robot2.pose.orientation.z = self.mission_params[robot_2_goal_dock_id]["orientation"]["z"]
         end_goal_robot2.pose.orientation.w = self.mission_params[robot_2_goal_dock_id]["orientation"]["w"]
+        robot2_dock_lateral_bias = self.mission_params[robot_2_goal_dock_id]["dock_bias"]["lateral"]
+        robot2_dock_forward_bias = self.mission_params[robot_2_goal_dock_id]["dock_bias"]["forward"]
 
         # DEFINE START GOAL POINTS FOR FROM GLOBAL PLANNER
 
@@ -331,12 +335,15 @@ class MissionControlActionServer(Node):
         robot_1_goal_package.start_dock_id = robot_1_start_dock_id
         robot_1_goal_package.end_dock_id = robot_1_goal_dock_id
         robot_1_goal_package.goals = self.combined_waypoints[0].poses
+        robot_1_goal_package.dock_lateral_bias = robot1_dock_lateral_bias
+        robot_1_goal_package.dock_forward_bias = robot1_dock_forward_bias
 
         robot_2_goal_package = StateMachine.Goal()
         robot_2_goal_package.start_dock_id = robot_2_start_dock_id
         robot_2_goal_package.end_dock_id = robot_2_goal_dock_id
         robot_2_goal_package.goals = self.combined_waypoints[1].poses
-
+        robot_2_goal_package.dock_lateral_bias = robot2_dock_lateral_bias
+        robot_2_goal_package.dock_forward_bias = robot2_dock_forward_bias
 
         ######### Give Goals to both robots and wait ###########
         self.re_init_goal_states()

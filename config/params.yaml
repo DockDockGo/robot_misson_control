@@ -1,55 +1,26 @@
-# Bottom Left Yaskawa arm
+# dock ID
 1:
   position:
-    x: 1.820076
-    y: -1.195509
+    x: 1.854648
+    y: -1.5513322
   orientation:
     x: 0.0
     y: 0.0
-    z: 0.039543246
-    w: 0.999056608
+    z: 0.016249007268174524
+    w: 0.9998679761662531
+  dock_bias:
+    lateral: 0.0
+    forward: 0.0
 
-# In between two tables
 2:
   position:
-    x: -1.861217
-    y: -2.555871
+    x: -2.10
+    y: -2.48
   orientation:
     x: 0.0
     y: 0.0
-    z: 0.02940583
-    w: 0.99940965
-
-# For John and Dimi (Bottom right table adjacent)
-3:
-  position:
-    x: -2.6391864
-    y: 0.54888858
-  orientation:
-    x: 0.0
-    y: 0.0
-    z: 0.00974890
-    w: 0.99951342
-
-# Bottom Right Yaskawa arm
-4:
-  position:
-    x: -0.892079
-    y: -1.268178
-  orientation:
-    x: 0.0
-    y: 0.0
-    z: 0.9998668
-    w: -0.004333
-
-
-# Top Right Table (potential stockroom)
-5:
-  position:
-    x: -0.931096
-    y: -5.244719
-  orientation:
-    x: 0.0
-    y: 0.0
-    z: 0.712658213
-    w: 0.701327674
+    z: 0.0009328767499914055
+    w: 0.99999956487039
+  dock_bias:
+    lateral: 0.0
+    forward: 0.0

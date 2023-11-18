@@ -304,6 +304,8 @@ class MissionControlActionServer(Node):
         end_goal_robot2.pose.orientation.w = self.mission_params[robot_2_goal_dock_id][
             "orientation"
         ]["w"]
+        robot2_dock_lateral_bias = self.mission_params[robot_2_goal_dock_id]["dock_bias"]["lateral"]
+        robot2_dock_forward_bias = self.mission_params[robot_2_goal_dock_id]["dock_bias"]["forward"]
 
         self.get_logger().info(f"Goal Pose x={end_goal_robot2.pose.position.x}")
         self.get_logger().info(f"Goal Pose y={end_goal_robot2.pose.position.y}")
@@ -334,6 +336,8 @@ class MissionControlActionServer(Node):
         robot_2_goal_package.start_dock_id = robot_2_start_dock_id
         robot_2_goal_package.end_dock_id = robot_2_goal_dock_id
         robot_2_goal_package.goals = self.combined_waypoints[0].poses
+        robot_2_goal_package.dock_lateral_bias = robot2_dock_lateral_bias
+        robot_2_goal_package.dock_forward_bias = robot2_dock_forward_bias
 
         ######### Give Goals to both robots and wait ###########
         self.re_init_goal_states()
