@@ -29,7 +29,7 @@ class MissionControlActionServer(Node):
 
         self.declare_parameter('robot1_namespace_param', 'robot1')
         robot1_namespace = self.get_parameter('robot1_namespace_param').get_parameter_value().string_value
-        self.get_logger().info(f"robo1 namespace is {robot1_namespace}")
+        self.get_logger().info(f"robot1 namespace is {robot1_namespace}")
 
         self.declare_parameter('robot2_namespace_param', 'robot2')
         robot2_namespace = self.get_parameter('robot2_namespace_param').get_parameter_value().string_value
@@ -87,7 +87,7 @@ class MissionControlActionServer(Node):
         self._robot_2_action_complete.clear()
         self._get_waypoints_complete.clear()
 
-    #! Temporary Pose Subscribers ########################
+    ######### Pose Subscribers ########################
         robot1_map_pose_topic = robot1_namespace + "/map_pose_mirror"
         robot2_map_pose_topic = robot2_namespace + "/map_pose_mirror"
         self._robot_1_latest_pose = None
@@ -111,7 +111,7 @@ class MissionControlActionServer(Node):
 
     def _robot_2_pose_callback(self, msg):
         self._robot_2_latest_pose = msg
-    #! ######################################################
+    ####################################################
 
     def re_init_goal_states(self):
         self._robot_1_mission_success = False
@@ -349,13 +349,27 @@ class MissionControlActionServer(Node):
         self.re_init_goal_states()
         self._robot_1_action_complete.clear()
         self._robot_2_action_complete.clear()
+        robot1_goal_sent = False
+        robot2_goal_sent = False
 
-        self.robot_1_send_goal(robot_1_goal_package)
-        self.robot_2_send_goal(robot_2_goal_package)
+        ##### Conditions to check if user wants to control both robots or just one ########
+        if robot_1_start_dock_id != robot_1_goal_dock_id:
+            self.robot_1_send_goal(robot_1_goal_package)
+            self.get_logger().info("Starting Mission for Robot 1")
+            robot1_goal_sent = True
 
-        self._robot_1_action_complete.wait()
-        self._robot_2_action_complete.wait()
-        self.get_logger().info('Got result')
+        if robot_2_start_dock_id != robot_2_goal_dock_id:
+            self.robot_2_send_goal(robot_2_goal_package)
+            self.get_logger().info("Starting Mission for Robot 2")
+            robot2_goal_sent = True
+
+        if robot1_goal_sent:
+            self._robot_1_action_complete.wait()
+
+        if robot2_goal_sent:
+            self._robot_2_action_complete.wait()
+
+        self.get_logger().info('Mission Complete')
 
         goal_handle.succeed()
 
