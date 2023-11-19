@@ -103,7 +103,7 @@ class MissionControlActionServer(Node):
         self.goal_pose = None
 
         #! Temporary Pose Subscribers ########################
-        robot2_map_pose_topic = robot2_namespace + "/map_pose"
+        robot2_map_pose_topic = robot2_namespace + "/map_pose_mirror"
         self._robot_1_latest_pose = None
 
         self._robot_2_pose_subscriber = self.create_subscription(

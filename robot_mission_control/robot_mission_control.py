@@ -88,8 +88,8 @@ class MissionControlActionServer(Node):
         self._get_waypoints_complete.clear()
 
     #! Temporary Pose Subscribers ########################
-        robot1_map_pose_topic = robot1_namespace + "/map_pose"
-        robot2_map_pose_topic = robot2_namespace + "/map_pose"
+        robot1_map_pose_topic = robot1_namespace + "/map_pose_mirror"
+        robot2_map_pose_topic = robot2_namespace + "/map_pose_mirror"
         self._robot_1_latest_pose = None
         self._robot_2_latest_pose = None
 

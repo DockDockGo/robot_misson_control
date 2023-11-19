@@ -10,17 +10,17 @@
     w: 0.9998679761662531
   dock_bias:
     lateral: 0.0
-    forward: 0.0
+    forward: -0.21
 
 2:
   position:
-    x: -2.10
-    y: -2.48
+    x: -0.9288063
+    y: -0.6579091
   orientation:
     x: 0.0
     y: 0.0
-    z: 0.0009328767499914055
-    w: 0.99999956487039
+    z: 0.006204306
+    w: 0.999980753
   dock_bias:
     lateral: 0.0
-    forward: 0.0
+    forward: -0.1
