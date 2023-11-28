@@ -277,10 +277,12 @@ class MissionControlActionServer(Node):
 
         # INPUT FROM FLEET MANAGEMENT
         dock_ids = goal_handle.request.robot_specific_dock_ids
+        undock_flags = goal_handle.request.robot_specific_undock_flags
         self.get_logger().info(f"Input dock IDs are {dock_ids}")
 
         robot_2_start_dock_id = dock_ids[0]
         robot_2_goal_dock_id = dock_ids[1]
+        robot_2_undock_flag = undock_flags[0]
         self.get_logger().info(f"navigating robot_2 to dock ID {robot_2_goal_dock_id}")
 
         # DEFINE END GOAL POINTS FOR FROM GLOBAL PLANNER
@@ -338,6 +340,7 @@ class MissionControlActionServer(Node):
         robot_2_goal_package.goals = self.combined_waypoints[0].poses
         robot_2_goal_package.dock_lateral_bias = robot2_dock_lateral_bias
         robot_2_goal_package.dock_forward_bias = robot2_dock_forward_bias
+        robot_2_goal_package.undock_flag = bool(robot_2_undock_flag)
 
         ######### Give Goals to both robots and wait ###########
         self.re_init_goal_states()
