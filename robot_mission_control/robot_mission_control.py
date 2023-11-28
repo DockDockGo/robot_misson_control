@@ -342,7 +342,7 @@ class MissionControlActionServer(Node):
         robot_1_goal_package.goals = self.combined_waypoints[0].poses
         robot_1_goal_package.dock_lateral_bias = robot1_dock_lateral_bias
         robot_1_goal_package.dock_forward_bias = robot1_dock_forward_bias
-        robot_1_goal_package.undock_flag = robot_1_undock_flag
+        robot_1_goal_package.undock_flag = bool(robot_1_undock_flag)
 
         robot_2_goal_package = StateMachine.Goal()
         robot_2_goal_package.start_dock_id = robot_2_start_dock_id
@@ -350,7 +350,7 @@ class MissionControlActionServer(Node):
         robot_2_goal_package.goals = self.combined_waypoints[1].poses
         robot_2_goal_package.dock_lateral_bias = robot2_dock_lateral_bias
         robot_2_goal_package.dock_forward_bias = robot2_dock_forward_bias
-        robot_2_goal_package.undock_flag = robot_2_undock_flag
+        robot_2_goal_package.undock_flag = bool(robot_2_undock_flag)
 
         ######### Give Goals to both robots and wait ###########
         self.re_init_goal_states()
