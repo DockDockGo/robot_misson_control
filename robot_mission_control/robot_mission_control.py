@@ -272,14 +272,19 @@ class MissionControlActionServer(Node):
 
         # INPUT FROM FLEET MANAGEMENT
         dock_ids = goal_handle.request.robot_specific_dock_ids
+        undock_flags = goal_handle.request.robot_specific_undock_flags
         self.get_logger().info(f'Input dock IDs are {dock_ids}')
 
         robot_1_start_dock_id = dock_ids[0]
         robot_1_goal_dock_id = dock_ids[1]
         robot_2_start_dock_id = dock_ids[2]
         robot_2_goal_dock_id = dock_ids[3]
+        robot_1_undock_flag = undock_flags[0]
+        robot_2_undock_flag = undock_flags[1]
         self.get_logger().info(f"navigating robot_1 to dock ID {robot_1_goal_dock_id}")
         self.get_logger().info(f"navigating robot_2 to dock ID {robot_2_goal_dock_id}")
+        self.get_logger().info(f"robot_1 undock flag : {robot_1_undock_flag}")
+        self.get_logger().info(f"robot_2 undock flag : {robot_2_undock_flag}")
 
         # DEFINE END GOAL POINTS FOR FROM GLOBAL PLANNER
         end_goal_robot1 = PoseStamped()
@@ -337,6 +342,7 @@ class MissionControlActionServer(Node):
         robot_1_goal_package.goals = self.combined_waypoints[0].poses
         robot_1_goal_package.dock_lateral_bias = robot1_dock_lateral_bias
         robot_1_goal_package.dock_forward_bias = robot1_dock_forward_bias
+        robot_1_goal_package.undock_flag = robot_1_undock_flag
 
         robot_2_goal_package = StateMachine.Goal()
         robot_2_goal_package.start_dock_id = robot_2_start_dock_id
@@ -344,6 +350,7 @@ class MissionControlActionServer(Node):
         robot_2_goal_package.goals = self.combined_waypoints[1].poses
         robot_2_goal_package.dock_lateral_bias = robot2_dock_lateral_bias
         robot_2_goal_package.dock_forward_bias = robot2_dock_forward_bias
+        robot_2_goal_package.undock_flag = robot_2_undock_flag
 
         ######### Give Goals to both robots and wait ###########
         self.re_init_goal_states()
@@ -353,12 +360,12 @@ class MissionControlActionServer(Node):
         robot2_goal_sent = False
 
         ##### Conditions to check if user wants to control both robots or just one ########
-        if robot_1_start_dock_id != robot_1_goal_dock_id:
+        if (robot_1_start_dock_id != 0) and (robot_1_goal_dock_id != 0):
             self.robot_1_send_goal(robot_1_goal_package)
             self.get_logger().info("Starting Mission for Robot 1")
             robot1_goal_sent = True
 
-        if robot_2_start_dock_id != robot_2_goal_dock_id:
+        if (robot_2_start_dock_id != 0) and (robot_2_goal_dock_id != 0):
             self.robot_2_send_goal(robot_2_goal_package)
             self.get_logger().info("Starting Mission for Robot 2")
             robot2_goal_sent = True
