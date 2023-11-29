@@ -324,6 +324,16 @@ class MissionControlActionServer(Node):
         start_goal_robot2.header = self._robot_2_latest_pose.header
         start_goal_robot2.pose = self._robot_2_latest_pose.pose.pose
 
+        if robot_1_goal_dock_id == robot_2_goal_dock_id:
+            goal_handle.succeed()
+            return self.get_final_result(False)
+
+        if (robot_1_start_dock_id == 0) and (robot_1_goal_dock_id == 0):
+            end_goal_robot1 = start_goal_robot1
+
+        if (robot_2_start_dock_id == 0) and (robot_2_goal_dock_id == 0):
+            end_goal_robot2 = start_goal_robot2
+
         self.get_plan_request.start = [start_goal_robot1, start_goal_robot2]
         self.get_plan_request.goal = [end_goal_robot1, end_goal_robot2]
 
@@ -351,6 +361,9 @@ class MissionControlActionServer(Node):
         robot_2_goal_package.dock_lateral_bias = robot2_dock_lateral_bias
         robot_2_goal_package.dock_forward_bias = robot2_dock_forward_bias
         robot_2_goal_package.undock_flag = bool(robot_2_undock_flag)
+
+        self.get_logger().info(f" robot_1_goal_package.undock_flag {robot_1_goal_package.undock_flag}")
+        self.get_logger().info(f" robot_2_goal_package.undock_flag {robot_2_goal_package.undock_flag}")
 
         ######### Give Goals to both robots and wait ###########
         self.re_init_goal_states()
