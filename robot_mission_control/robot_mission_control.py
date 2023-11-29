@@ -125,9 +125,11 @@ class MissionControlActionServer(Node):
         self._robot_2_input_feedback_state = None
 
 
-    def get_final_result(self, success_status):
+    def get_final_result(self, success_status : int, status_text=None):
         result = MissionControl.Result()
-        result.success = success_status
+        result.status_code = success_status
+        if status_text is not None:
+            result.text = status_text
         return result
 
     def get_waypoints_from_planner(self, future):
@@ -146,6 +148,29 @@ class MissionControlActionServer(Node):
             output_feedback_msg.state_feedback = [self._robot_1_input_feedback_state, self._robot_2_input_feedback_state]
             self._mission_control_goal_handle.publish_feedback(output_feedback_msg)
             pass
+    
+    
+    def euclidean_distance(self, pos1_object, pos2_object):
+        
+        # accessor function
+        def get_pose(pos_object):
+            if isinstance(pos_object, PoseStamped):
+                return pos_object.pose
+            elif isinstance(pos_object, PoseWithCovarianceStamped):
+                return pos_object.pose.pose
+            else:
+                raise ValueError("Input pos_object is not a valid type (Pose or PoseWithCovariance)")
+        
+        # Extract the positions from the poses
+        pos1 = get_pose(pos1_object)
+        pos2 = get_pose(pos2_object)
+
+        # Calculate the Euclidean distance
+        dx = pos1.position.x - pos2.position.x
+        dy = pos1.position.y - pos2.position.y
+
+        distance = math.sqrt(dx**2 + dy**2)
+        return distance
 
     ########## Send Goals to Individual Robots ################################################
 
@@ -324,15 +349,20 @@ class MissionControlActionServer(Node):
         start_goal_robot2.header = self._robot_2_latest_pose.header
         start_goal_robot2.pose = self._robot_2_latest_pose.pose.pose
 
-        if robot_1_goal_dock_id == robot_2_goal_dock_id:
-            goal_handle.succeed()
-            return self.get_final_result(False)
-
-        if (robot_1_start_dock_id == 0) and (robot_1_goal_dock_id == 0):
+        if (robot_1_start_dock_id == 100) and (robot_1_goal_dock_id == 100):
             end_goal_robot1 = start_goal_robot1
 
-        if (robot_2_start_dock_id == 0) and (robot_2_goal_dock_id == 0):
+        if (robot_2_start_dock_id == 100) and (robot_2_goal_dock_id == 100):
             end_goal_robot2 = start_goal_robot2
+
+        # at this stage, we handled input cases: (A,B), (A,A), and (0,0)
+        # check for conflicting goal poses
+        goal_pose_distances = self.euclidean_distance(end_goal_robot1, end_goal_robot2)
+        self.get_logger().info(f"euclidean distance is {goal_pose_distances}")
+        if goal_pose_distances < 1.0: # metres
+            self.get_logger().info(f"Rejecting Goal due to conflicting end goal poses")
+            goal_handle.abort()
+            return self.get_final_result(400, "conflicting end goal poses")
 
         self.get_plan_request.start = [start_goal_robot1, start_goal_robot2]
         self.get_plan_request.goal = [end_goal_robot1, end_goal_robot2]
@@ -344,7 +374,7 @@ class MissionControlActionServer(Node):
         self._get_waypoints_complete.wait()
         if self.combined_waypoints is None:
             goal_handle.succeed()
-            return self.get_final_result(False)
+            return self.get_final_result(500, "no plan from global planner")
 
         robot_1_goal_package = StateMachine.Goal()
         robot_1_goal_package.start_dock_id = robot_1_start_dock_id
@@ -373,15 +403,15 @@ class MissionControlActionServer(Node):
         robot2_goal_sent = False
 
         ##### Conditions to check if user wants to control both robots or just one ########
-        if (robot_1_start_dock_id != 0) and (robot_1_goal_dock_id != 0):
-            self.robot_1_send_goal(robot_1_goal_package)
-            self.get_logger().info("Starting Mission for Robot 1")
-            robot1_goal_sent = True
+        # if not(robot_1_start_dock_id == 0 and robot_1_goal_dock_id == 0):
+        self.robot_1_send_goal(robot_1_goal_package)
+        self.get_logger().info("Starting Mission for Robot 1")
+        robot1_goal_sent = True
 
-        if (robot_2_start_dock_id != 0) and (robot_2_goal_dock_id != 0):
-            self.robot_2_send_goal(robot_2_goal_package)
-            self.get_logger().info("Starting Mission for Robot 2")
-            robot2_goal_sent = True
+        # if not(robot_2_start_dock_id == 0 and robot_2_goal_dock_id == 0):
+        self.robot_2_send_goal(robot_2_goal_package)
+        self.get_logger().info("Starting Mission for Robot 2")
+        robot2_goal_sent = True
 
         if robot1_goal_sent:
             self._robot_1_action_complete.wait()
@@ -395,9 +425,9 @@ class MissionControlActionServer(Node):
 
         if self._robot_1_mission_success and self._robot_2_mission_success:
             self.get_logger().info("Returning Success")
-            return self.get_final_result(True)
+            return self.get_final_result(200, "success")
         else:
-            return self.get_final_result(False)
+            return self.get_final_result(500, "mission failed midway")
 
 
 def MissionControlServer(args=None):
