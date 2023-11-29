@@ -403,15 +403,17 @@ class MissionControlActionServer(Node):
         robot2_goal_sent = False
 
         ##### Conditions to check if user wants to control both robots or just one ########
-        # if not(robot_1_start_dock_id == 0 and robot_1_goal_dock_id == 0):
-        self.robot_1_send_goal(robot_1_goal_package)
-        self.get_logger().info("Starting Mission for Robot 1")
-        robot1_goal_sent = True
+        self._robot_1_mission_success = False
+        self._robot_2_mission_success = False
+        if len(robot_1_goal_package.goals) > 2:
+            self.robot_1_send_goal(robot_1_goal_package)
+            self.get_logger().info("Starting Mission for Robot 1")
+            robot1_goal_sent = True
 
-        # if not(robot_2_start_dock_id == 0 and robot_2_goal_dock_id == 0):
-        self.robot_2_send_goal(robot_2_goal_package)
-        self.get_logger().info("Starting Mission for Robot 2")
-        robot2_goal_sent = True
+        if len(robot_2_goal_package.goals) > 2:
+            self.robot_2_send_goal(robot_2_goal_package)
+            self.get_logger().info("Starting Mission for Robot 2")
+            robot2_goal_sent = True
 
         if robot1_goal_sent:
             self._robot_1_action_complete.wait()
@@ -423,12 +425,28 @@ class MissionControlActionServer(Node):
 
         goal_handle.succeed()
 
-        if self._robot_1_mission_success and self._robot_2_mission_success:
-            self.get_logger().info("Returning Success")
-            return self.get_final_result(200, "success")
-        else:
-            return self.get_final_result(500, "mission failed midway")
+        if robot1_goal_sent and robot2_goal_sent:
+            if self._robot_1_mission_success and self._robot_2_mission_success:
+                self.get_logger().info("Returning Success")
+                return self.get_final_result(200, "success")
+            else:
+                return self.get_final_result(500, "mission failed midway")
 
+        elif robot1_goal_sent and (not robot2_goal_sent):
+            if self._robot_1_mission_success:
+                self.get_logger().info("Returning Success")
+                return self.get_final_result(200, "success")
+            else:
+                return self.get_final_result(500, "mission failed midway")
+                
+        elif (not robot1_goal_sent) and robot2_goal_sent:
+            if self._robot_2_mission_success:
+                self.get_logger().info("Returning Success")
+                return self.get_final_result(200, "success")
+            else:
+                return self.get_final_result(500, "mission failed midway")
+        else: 
+            return self.get_final_result(200, "success")
 
 def MissionControlServer(args=None):
     rclpy.init(args=args)
