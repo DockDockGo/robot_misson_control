@@ -22,7 +22,7 @@ from rclpy.executors import MultiThreadedExecutor
 import math
 import time
 import yaml
-from threading import Event
+from threading import Event, Lock
 import os
 from ament_index_python.packages import get_package_share_directory
 from tf_transformations import euler_from_quaternion
@@ -70,7 +70,8 @@ class MissionControlActionServer(Node):
             self,
             MissionControl,
             action_server_name,
-            self.execute_callback,
+            execute_callback=self.execute_callback,
+            handle_accepted_callback=self.handle_accepted_callback,
             callback_group=self.callback_group,
         )
 
@@ -102,7 +103,14 @@ class MissionControlActionServer(Node):
         self._get_waypoints_complete.clear()
         self.goal_pose = None
 
-        #! Temporary Pose Subscribers ########################
+        ######## features to handle goal changes async
+        self._goal_lock = Lock()
+        self._mission_control_goal_handle = None
+
+        # Create a simple timer to check for goal handle changes
+        self.timer = self.create_timer(0.1, callback_group=self.callback_group, callback=self.simple_timer_callback)
+        ##################################################
+
         robot2_map_pose_topic = robot2_namespace + "/map_pose"
         self._robot_1_latest_pose = None
 
@@ -153,7 +161,27 @@ class MissionControlActionServer(Node):
         distance = math.sqrt(dx**2 + dy**2 + dz**2)
         return dx, dy, dz, orientation_difference
 
-    #! ######################################################
+    def handle_accepted_callback(self, goal_handle):
+        with self._goal_lock:
+            # This server only allows one goal at a time
+            if self._mission_control_goal_handle is not None and self._mission_control_goal_handle.is_active:
+                self.get_logger().info('Aborting previous goal')
+                # Abort the existing goal
+                self._mission_control_goal_handle.abort()
+            self._mission_control_goal_handle = goal_handle
+
+        goal_handle.execute()
+
+    def simple_timer_callback(self):
+        if not self._mission_control_goal_handle.is_active:
+            self.get_logger().info('Goal aborted')
+            self.get_final_result(False)
+
+        # check for aborted or cancelled goal handle
+        if self._mission_control_goal_handle.is_cancel_requested:
+            self._mission_control_goal_handle.canceled()
+            self.get_logger().info('Goal canceled')
+            self.get_final_result(True)
 
     def re_init_goal_states(self):
         self._robot_2_mission_success = False

@@ -11,7 +11,7 @@ from launch_ros.actions import Node
 def generate_launch_description():
     ld = LaunchDescription()
 
-    single_launch = "False"
+    single_launch = "True"
 
     robot1_namespace = LaunchConfiguration("robot1_namespace", default="robot1")
     robot2_namespace = LaunchConfiguration("robot2_namespace", default="robot2")

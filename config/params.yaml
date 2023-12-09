@@ -1,24 +1,24 @@
 # Bottom Left Yaskawa arm
 1:
   position:
-    x: 1.820076
-    y: -1.195509
+    x: 4.0
+    y: -1.0
   orientation:
     x: 0.0
     y: 0.0
-    z: 0.039543246
-    w: 0.999056608
+    z: 0.0082379476017040
+    w: 0.9999660675339497
 
 # In between two tables
 2:
   position:
-    x: -1.861217
-    y: -2.555871
+    x: 1.0
+    y: -1.3
   orientation:
     x: 0.0
     y: 0.0
-    z: 0.02940583
-    w: 0.99940965
+    z: 0.0082379476017040
+    w: 0.9999660675339497
 
 # For John and Dimi (Bottom right table adjacent)
 3:
