@@ -108,7 +108,7 @@ class MissionControlActionServer(Node):
         self._mission_control_goal_handle = None
 
         # Create a simple timer to check for goal handle changes
-        self.timer = self.create_timer(0.1, callback_group=self.callback_group, callback=self.simple_timer_callback)
+        # self.timer = self.create_timer(0.1, callback_group=self.callback_group, callback=self.simple_timer_callback)
         ##################################################
 
         robot2_map_pose_topic = robot2_namespace + "/map_pose"
@@ -168,20 +168,24 @@ class MissionControlActionServer(Node):
                 self.get_logger().info('Aborting previous goal')
                 # Abort the existing goal
                 self._mission_control_goal_handle.abort()
+                time.sleep(0.5)
+
             self._mission_control_goal_handle = goal_handle
 
         goal_handle.execute()
 
-    def simple_timer_callback(self):
-        if not self._mission_control_goal_handle.is_active:
-            self.get_logger().info('Goal aborted')
-            self.get_final_result(False)
+    # def simple_timer_callback(self):
+        # if self._mission_control_goal_handle is not None:
+        #     if not self._mission_control_goal_handle.is_active:
+        #         self.get_logger().info('Goal aborted')
+        #         self.get_final_result(False)
 
-        # check for aborted or cancelled goal handle
-        if self._mission_control_goal_handle.is_cancel_requested:
-            self._mission_control_goal_handle.canceled()
-            self.get_logger().info('Goal canceled')
-            self.get_final_result(True)
+        # # check for aborted or cancelled goal handle
+        # if self._mission_control_goal_handle is not None:
+        #     if self._mission_control_goal_handle.is_cancel_requested:
+        #         self._mission_control_goal_handle.canceled()
+        #         self.get_logger().info('Goal canceled')
+        #         self.get_final_result(True)
 
     def re_init_goal_states(self):
         self._robot_2_mission_success = False
@@ -287,11 +291,11 @@ class MissionControlActionServer(Node):
             #                      robot_2 pos y = {input_feedback_pose_y}"
         # )
         dx, dy, dz, orientation_difference = self.euclidean_distance(self.goal_pose, self._robot_2_input_feedback_pose)
-        self.get_logger().info(f"orientation error is {orientation_difference}")
-        self.get_logger().info(f"dx={dx} and dy={dy} and dz={dz}")
-        self.get_logger().info(
-            f"Received feedback: robot_2 state={self._robot_2_input_feedback_state}"
-        )
+        # self.get_logger().info(f"orientation error is {orientation_difference}")
+        # self.get_logger().info(f"dx={dx} and dy={dy} and dz={dz}")
+        # self.get_logger().info(
+        #     f"Received feedback: robot_2 state={self._robot_2_input_feedback_state}"
+        # )
 
         self.publish_mission_control_feedback()
 
@@ -301,7 +305,7 @@ class MissionControlActionServer(Node):
         Each Robot Task will be split into Undocking -> Navigation -> Docking
         """
         self.re_init_goal_states()
-        self._mission_control_goal_handle = goal_handle
+        # self._mission_control_goal_handle = goal_handle
 
         # INPUT FROM FLEET MANAGEMENT
         dock_ids = goal_handle.request.robot_specific_dock_ids
@@ -369,7 +373,24 @@ class MissionControlActionServer(Node):
 
         self.robot_2_send_goal(robot_2_goal_package)
 
-        self._robot_2_action_complete.wait()
+        # self._robot_2_action_complete.wait()
+
+        while not self._robot_2_action_complete.is_set():
+            if not goal_handle.is_active:
+                self.get_logger().info('GOAL ABORTED')
+                return self.get_final_result(False)
+
+            # check for aborted or cancelled goal handle
+            if goal_handle.is_cancel_requested:
+                goal_handle.canceled()
+                self.get_logger().info('GOAL CANCELLED, Cancelling low level actions')
+                robot_2_goal_package.start_dock_id = 0
+                robot_2_goal_package.end_dock_id = 0
+                self.robot_2_send_goal(robot_2_goal_package)
+                time.sleep(2) # wait for low level action serves to cancel
+                return self.get_final_result(False)
+            time.sleep(0.1)
+
         self.get_logger().info("Got result")
 
         goal_handle.succeed()
