@@ -19,7 +19,7 @@ import time
 import yaml
 import os
 from ament_index_python.packages import get_package_share_directory
-from threading import Event
+from threading import Event, Lock
 
 class MissionControlActionServer(Node):
 
@@ -62,7 +62,8 @@ class MissionControlActionServer(Node):
             self,
             MissionControl,
             action_server_name,
-            self.execute_callback,
+            execute_callback=self.execute_callback,
+            handle_accepted_callback=self.handle_accepted_callback,
             callback_group=self.callback_group)
 
         # Global Planner Service Client
@@ -86,10 +87,12 @@ class MissionControlActionServer(Node):
         self._robot_1_action_complete.clear()
         self._robot_2_action_complete.clear()
         self._get_waypoints_complete.clear()
+        self._goal_lock = Lock()
+        self._mission_control_goal_handle = None
 
     ######### Pose Subscribers ########################
-        robot1_map_pose_topic = robot1_namespace + "/map_pose_mirror"
-        robot2_map_pose_topic = robot2_namespace + "/map_pose_mirror"
+        robot1_map_pose_topic = robot1_namespace + "/map_pose"
+        robot2_map_pose_topic = robot2_namespace + "/map_pose"
         self._robot_1_latest_pose = None
         self._robot_2_latest_pose = None
 
@@ -146,12 +149,12 @@ class MissionControlActionServer(Node):
             output_feedback_msg = MissionControl.Feedback()
             output_feedback_msg.pose_feedback = [self._robot_1_input_feedback_pose, self._robot_2_input_feedback_pose]
             output_feedback_msg.state_feedback = [self._robot_1_input_feedback_state, self._robot_2_input_feedback_state]
-            self._mission_control_goal_handle.publish_feedback(output_feedback_msg)
-            pass
-    
-    
+            if self._mission_control_goal_handle is not None:
+                self._mission_control_goal_handle.publish_feedback(output_feedback_msg)
+
+
     def euclidean_distance(self, pos1_object, pos2_object):
-        
+
         # accessor function
         def get_pose(pos_object):
             if isinstance(pos_object, PoseStamped):
@@ -160,7 +163,7 @@ class MissionControlActionServer(Node):
                 return pos_object.pose.pose
             else:
                 raise ValueError("Input pos_object is not a valid type (Pose or PoseWithCovariance)")
-        
+
         # Extract the positions from the poses
         pos1 = get_pose(pos1_object)
         pos2 = get_pose(pos2_object)
@@ -239,9 +242,9 @@ class MissionControlActionServer(Node):
         self._robot_1_input_feedback_state = input_feedback_msg.feedback.state_feedback
         input_feedback_pose_x = str(round(self._robot_1_input_feedback_pose.pose.pose.position.x, 2))
         input_feedback_pose_y = str(round(self._robot_1_input_feedback_pose.pose.pose.position.y, 2))
-        self.get_logger().info(f'Received feedback: robot_1 pos x={input_feedback_pose_x},\
-                                 robot_1 pos y = {input_feedback_pose_y}')
-        self.get_logger().info(f'Received feedback: robot_1 state={self._robot_1_input_feedback_state}')
+        # self.get_logger().info(f'Received feedback: robot_1 pos x={input_feedback_pose_x},\
+        #                          robot_1 pos y = {input_feedback_pose_y}')
+        # self.get_logger().info(f'Received feedback: robot_1 state={self._robot_1_input_feedback_state}')
 
         self.publish_mission_control_feedback()
 
@@ -280,12 +283,27 @@ class MissionControlActionServer(Node):
         self._robot_2_input_feedback_state = input_feedback_msg.feedback.state_feedback
         input_feedback_pose_x = str(round(self._robot_2_input_feedback_pose.pose.pose.position.x, 2))
         input_feedback_pose_y = str(round(self._robot_2_input_feedback_pose.pose.pose.position.y, 2))
-        self.get_logger().info(f'Received feedback: robot_2 pos x={input_feedback_pose_x},\
-                                 robot_2 pos y = {input_feedback_pose_y}')
-        self.get_logger().info(f'Received feedback: robot_2 state={self._robot_2_input_feedback_state}')
+        # self.get_logger().info(f'Received feedback: robot_2 pos x={input_feedback_pose_x},\
+        #                          robot_2 pos y = {input_feedback_pose_y}')
+        # self.get_logger().info(f'Received feedback: robot_2 state={self._robot_2_input_feedback_state}')
 
         self.publish_mission_control_feedback()
 
+    ############## Handle only one goal at a time #################################
+
+    def handle_accepted_callback(self, goal_handle):
+        with self._goal_lock:
+            # This server only allows one goal at a time
+            if self._mission_control_goal_handle is not None and self._mission_control_goal_handle.is_active:
+                self.get_logger().info('Aborting previous goal')
+                # Abort the existing goal
+                self._mission_control_goal_handle.abort()
+                time.sleep(0.5)
+
+            print("Setting new mission_control goal handle")
+            self._mission_control_goal_handle = goal_handle
+
+        goal_handle.execute()
 
     ############### MAIN LOOP START ################################################
     def execute_callback(self, goal_handle):
@@ -293,7 +311,6 @@ class MissionControlActionServer(Node):
         Each Robot Task will be split into Undocking -> Navigation -> Docking
         """
         self.re_init_goal_states()
-        self._mission_control_goal_handle = goal_handle
 
         # INPUT FROM FLEET MANAGEMENT
         dock_ids = goal_handle.request.robot_specific_dock_ids
@@ -355,11 +372,11 @@ class MissionControlActionServer(Node):
         if (robot_2_start_dock_id == 100) and (robot_2_goal_dock_id == 100):
             end_goal_robot2 = start_goal_robot2
 
-        # at this stage, we handled input cases: (A,B), (A,A), and (0,0)
+        # at this stage, we handled input cases: (A,B), (A,A), and (100,100)
         # check for conflicting goal poses
         goal_pose_distances = self.euclidean_distance(end_goal_robot1, end_goal_robot2)
         self.get_logger().info(f"euclidean distance is {goal_pose_distances}")
-        if goal_pose_distances < 1.0: # metres
+        if goal_pose_distances < 1.0 and (robot_1_goal_dock_id != 0 and robot_2_goal_dock_id != 0): # metres
             self.get_logger().info(f"Rejecting Goal due to conflicting end goal poses")
             goal_handle.abort()
             return self.get_final_result(400, "conflicting end goal poses")
@@ -367,14 +384,17 @@ class MissionControlActionServer(Node):
         self.get_plan_request.start = [start_goal_robot1, start_goal_robot2]
         self.get_plan_request.goal = [end_goal_robot1, end_goal_robot2]
 
-        # get plan from planner
-        self._get_waypoints_complete.clear()
-        get_plan_future = self._global_planner_client.call_async(self.get_plan_request)
-        get_plan_future.add_done_callback(self.get_waypoints_from_planner)
-        self._get_waypoints_complete.wait()
-        if self.combined_waypoints is None:
-            goal_handle.succeed()
-            return self.get_final_result(500, "no plan from global planner")
+        # Ask Global Planner for Waypoints only if dock_IDs are not 0s
+        if robot_1_goal_dock_id != 0 and robot_2_goal_dock_id != 0:
+            self._get_waypoints_complete.clear()
+            get_plan_future = self._global_planner_client.call_async(self.get_plan_request)
+            get_plan_future.add_done_callback(self.get_waypoints_from_planner)
+            self._get_waypoints_complete.wait()
+            if self.combined_waypoints is None:
+                goal_handle.succeed()
+                return self.get_final_result(500, "no plan from global planner")
+        else:
+            self.combined_waypoints = [Path(), Path()]
 
         robot_1_goal_package = StateMachine.Goal()
         robot_1_goal_package.start_dock_id = robot_1_start_dock_id
@@ -405,21 +425,44 @@ class MissionControlActionServer(Node):
         ##### Conditions to check if user wants to control both robots or just one ########
         self._robot_1_mission_success = False
         self._robot_2_mission_success = False
-        if len(robot_1_goal_package.goals) > 2:
+        if len(robot_1_goal_package.goals) > 2 or robot_1_goal_dock_id == 0:
             self.robot_1_send_goal(robot_1_goal_package)
             self.get_logger().info("Starting Mission for Robot 1")
             robot1_goal_sent = True
 
-        if len(robot_2_goal_package.goals) > 2:
+        if len(robot_2_goal_package.goals) > 2 or robot_2_goal_dock_id == 0:
             self.robot_2_send_goal(robot_2_goal_package)
             self.get_logger().info("Starting Mission for Robot 2")
             robot2_goal_sent = True
 
-        if robot1_goal_sent:
-            self._robot_1_action_complete.wait()
+        # wait for each robot to finish its mission
+        while True:
+            if not goal_handle.is_active:
+                self.get_logger().info('GOAL ABORTED')
+                return self.get_final_result(500, "mission aborted midway")
 
-        if robot2_goal_sent:
-            self._robot_2_action_complete.wait()
+            # check for aborted or cancelled goal handle
+            if goal_handle.is_cancel_requested:
+                goal_handle.canceled()
+                self.get_logger().info('GOAL CANCELLED, Cancelling low level actions')
+                if robot1_goal_sent:
+                    robot_1_goal_package.start_dock_id = 0
+                    robot_1_goal_package.end_dock_id = 0
+                    self.robot_1_send_goal(robot_1_goal_package)
+                if robot2_goal_sent:
+                    robot_2_goal_package.start_dock_id = 0
+                    robot_2_goal_package.end_dock_id = 0
+                    self.robot_2_send_goal(robot_2_goal_package)
+                time.sleep(2) # wait for low level action serves to cancel
+                return self.get_final_result(200, "cancelled successfully")
+
+            condition_1 = self._robot_1_action_complete.is_set() if robot1_goal_sent else True
+            condition_2 = self._robot_2_action_complete.is_set() if robot2_goal_sent else True
+
+            if condition_1 and condition_2:
+                break
+
+            time.sleep(0.1)
 
         self.get_logger().info('Mission Complete')
 
@@ -438,14 +481,14 @@ class MissionControlActionServer(Node):
                 return self.get_final_result(200, "success")
             else:
                 return self.get_final_result(500, "mission failed midway")
-                
+
         elif (not robot1_goal_sent) and robot2_goal_sent:
             if self._robot_2_mission_success:
                 self.get_logger().info("Returning Success")
                 return self.get_final_result(200, "success")
             else:
                 return self.get_final_result(500, "mission failed midway")
-        else: 
+        else:
             return self.get_final_result(200, "success")
 
 def MissionControlServer(args=None):
