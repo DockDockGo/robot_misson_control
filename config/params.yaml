@@ -1,4 +1,18 @@
-# DO NOT REMOVE DOCK 0
+# DO NOT REMOVE DOCK 0 or DOCK 100
+0: # define this as a default cancellation dock
+  position:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+  orientation:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 0.0
+  dock_bias:
+    lateral: 0.0
+    forward: 0.0
+
 100:
   position:
     x: 0.0
