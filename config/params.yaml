@@ -1,5 +1,5 @@
-# DO NOT REMOVE DOCK 0 or DOCK 100
-0: # define this as a default cancellation dock
+# DO NOT REMOVE DOCK 0 and DOCK 100
+0:
   position:
     x: 0.0
     y: 0.0
