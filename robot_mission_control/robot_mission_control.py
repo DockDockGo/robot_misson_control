@@ -425,12 +425,14 @@ class MissionControlActionServer(Node):
         ##### Conditions to check if user wants to control both robots or just one ########
         self._robot_1_mission_success = False
         self._robot_2_mission_success = False
-        if len(robot_1_goal_package.goals) > 2 or robot_1_goal_dock_id == 0:
+        # if len(robot_1_goal_package.goals) > 2 or robot_1_goal_dock_id == 0:
+        if robot_1_goal_dock_id != 100:
             self.robot_1_send_goal(robot_1_goal_package)
             self.get_logger().info("Starting Mission for Robot 1")
             robot1_goal_sent = True
 
-        if len(robot_2_goal_package.goals) > 2 or robot_2_goal_dock_id == 0:
+        # if len(robot_2_goal_package.goals) > 2 or robot_2_goal_dock_id == 0:
+        if robot_2_goal_dock_id != 100:
             self.robot_2_send_goal(robot_2_goal_package)
             self.get_logger().info("Starting Mission for Robot 2")
             robot2_goal_sent = True

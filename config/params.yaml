@@ -1,9 +1,8 @@
 # DO NOT REMOVE DOCK 0 and DOCK 100
-"""
-lateral bias 0 = robot docks with preset distance from fiducial marker
-lateral bias -0.1 = robot docks 0.1 meter closer to dock (NOTE: too high a negative value may make the robot hit the table when docking)
-"""
-# -ve numbers in forward offset = closer the robot to the 
+# lateral bias 0 = robot docks with preset distance from fiducial marker
+# lateral bias -0.1 = robot docks 0.1 meter closer to dock (NOTE: too high a negative value may make the robot hit the table when docking)
+# negative numbers in forward offset = closer the robot to the
+
 0:
   position:
     x: 0.0
