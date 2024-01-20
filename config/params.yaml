@@ -1,4 +1,9 @@
 # DO NOT REMOVE DOCK 0 and DOCK 100
+"""
+lateral bias 0 = robot docks with preset distance from fiducial marker
+lateral bias -0.1 = robot docks 0.1 meter closer to dock (NOTE: too high a negative value may make the robot hit the table when docking)
+"""
+# -ve numbers in forward offset = closer the robot to the 
 0:
   position:
     x: 0.0
@@ -29,17 +34,17 @@
 
 1:
   position:
-    x: 1.8670478791656064
-    y: -1.439231300670758
+    x: 1.834081468312494
+    y: -1.462158283800769
     z: 0.0
   orientation:
     x: 0.0
-    y: -0.0
-    z: -0.01147364535716663
-    w: -0.9999341755646809
+    y: 0.0
+    z: 0.04857546960970468
+    w: 0.9988195151038033
   dock_bias:
     lateral: -0.10
-    forward: -0.21
+    forward: -0.13
 
 2:
   position:
@@ -53,7 +58,7 @@
     w: -0.02316826811687737
   dock_bias:
     lateral: -0.13
-    forward: -0.21
+    forward: -0.16
 
 3:
   position:
